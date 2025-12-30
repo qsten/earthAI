@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D地球地理教学系统</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <canvas id="earthCanvas"></canvas>
+        
+        <!-- 控制面板 -->
+        <div id="controlPanel">
+            <h2>🌍 控制面板</h2>
+            <div style="text-align: center; color: #4fc3f7; margin-bottom: 15px; font-size: 12px;">
+                <span id="statusIndicator">系统初始化中...</span>
+            </div>
+            
+            <!-- 图层控制 -->
+            <div class="control-group">
+                <h3>🗺️ 图层控制</h3>
+                <label>
+                    <input type="checkbox" id="view3DToggle" checked> 3D立体视图
+                </label>
+                <label>
+                    <input type="checkbox" id="latitudeLineToggle" checked> 纬线
+                </label>
+                <label>
+                    <input type="checkbox" id="longitudeLineToggle" checked> 经线
+                </label>
+                <label>
+                    <input type="checkbox" id="latitudeValueToggle" checked> 纬度值
+                </label>
+                <label>
+                    <input type="checkbox" id="longitudeValueToggle" checked> 经度值
+                </label>
+                <label>
+                    <input type="checkbox" id="equatorToggle" checked> 赤道
+                </label>
+                <label>
+                    <input type="checkbox" id="primeMeridianToggle" checked> 本初子午线
+                </label>
+                <label>
+                    <input type="checkbox" id="tropicsToggle" checked> 回归线和极圈
+                </label>
+                <label>
+                    <input type="checkbox" id="continentsToggle"> 显示七大洲四大洋
+                </label>
+            </div>
+            
+            <!-- 坐标定位 -->
+            <div class="control-group">
+                <h3>📍 坐标定位</h3>
+                <div class="input-group">
+                    <label for="latitude">纬度:</label>
+                    <input type="number" id="latitude" placeholder="例: 30" min="-90" max="90">
+                    <select id="latDirection">
+                        <option value="N">北纬(N)</option>
+                        <option value="S">南纬(S)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="longitude">经度:</label>
+                    <input type="number" id="longitude" placeholder="例: 120" min="-180" max="180">
+                    <select id="lonDirection">
+                        <option value="E">东经(E)</option>
+                        <option value="W">西经(W)</option>
+                    </select>
+                </div>
+                <button id="locateBtn">定位到坐标</button>
+                <button id="resetViewBtn">重置视角</button>
+            </div>
+            
+            <!-- AI寻宝游戏 -->
+            <div class="control-group" id="gameMenuPanel">
+                <h3>🎮 时空穿梭者挑战</h3>
+                <p style="font-size: 14px; color: #81d4fa; margin-bottom: 15px;">经纬度闯关挑战 - 三关全通</p>
+                <button id="startLevel1Btn" class="level-btn">🥉 第一关：青铜级 - 界线寻踪</button>
+                <button id="startLevel2Btn" class="level-btn">🥈 第二关：白银级 - 极限营救</button>
+                <button id="startLevel3Btn" class="level-btn">🥇 第三关：王者级 - 地心穿梭</button>
+                <div style="margin-top: 15px; padding: 10px; background: rgba(76, 175, 80, 0.2); border-radius: 4px;">
+                    <p style="font-size: 13px; color: #a5d6a7; margin: 0;">✅ 已通关：<span id="passedLevels">0</span> / 3</p>
+                </div>
+            </div>
+            
+            <!-- 游戏关卡界面 -->
+            <div class="control-group" id="gameLevelPanel" style="display: none;">
+                <button id="backToMenuBtn" class="back-btn">← 返回主菜单</button>
+                <h3 id="levelTitle">🎮 关卡标题</h3>
+                
+                <!-- 情境介绍 -->
+                <div class="story-box">
+                    <p id="storyText" style="font-size: 14px; line-height: 1.8; color: #b3e5fc;"></p>
+                </div>
+                
+                <!-- 任务指令 -->
+                <div class="mission-box">
+                    <h4>📜 任务指令：</h4>
+                    <p id="missionText" style="font-size: 15px; line-height: 1.8; color: #ffeb3b;"></p>
+                </div>
+                
+                <!-- 提示 -->
+                <div class="hint-box">
+                    <p id="hintText" style="font-size: 13px; color: #90caf9;"></p>
+                </div>
+                
+                <!-- 操作按钮 -->
+                <div class="action-buttons">
+                    <button id="submitAnswerBtn" class="submit-btn">✅ 提交答案</button>
+                    <button id="showHintBtn" class="hint-btn">💡 显示提示</button>
+                </div>
+                
+                <!-- AI反馈 -->
+                <div class="feedback-box">
+                    <h4>🤖 AI反馈：</h4>
+                    <p id="gameFeedbackText" style="font-size: 15px; line-height: 1.8;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 引入Three.js库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <!-- 引入自定义脚本 -->
+    <script src="main.js"></script>
+</body>
+</html>

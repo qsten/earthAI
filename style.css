@@ -1,0 +1,292 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Microsoft YaHei', Arial, sans-serif;
+    background: linear-gradient(135deg, #1a2a6c, #2c3e50);
+    color: #fff;
+    height: 100vh;
+    overflow: hidden;
+}
+
+#container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    position: relative;
+}
+
+/* 地球画布 */
+#earthCanvas {
+    width: 70%;  /* 地球区域厀70% */
+    height: 100%;
+    display: block;
+    /* 触摸屏优化 */
+    touch-action: none;  /* 禁用浏览器默认触摸手势，由Three.js完全控制 */
+    user-select: none;   /* 禁止选中文本 */
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;  /* 禁用iOS长按菜单 */
+}
+
+/* 控制面板 */
+#controlPanel {
+    width: 30%;  /* 右侧菜单区域厀30% */
+    min-width: 350px;  /* 设置最小宽度，防止过窄 */
+    background: rgba(0, 0, 0, 0.85);
+    padding: 15px;  /* 减少内边距，从20px改为15px */
+    overflow-y: auto;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    border-left: 2px solid #4fc3f7;
+}
+
+#controlPanel h2 {
+    text-align: center;
+    margin-bottom: 12px;  /* 减少间距，从20px改为12px */
+    color: #4fc3f7;
+    font-size: 20px;  /* 稍微缩小字体 */
+    text-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+}
+
+.control-group {
+    margin-bottom: 15px;  /* 减少间距，从25px改为15px */
+    padding: 10px;  /* 减少内边距，从15px改为10px */
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;  /* 稍微减小圆角 */
+}
+
+.control-group h3 {
+    margin-bottom: 10px;  /* 减少间距，从15px改为10px */
+    color: #81d4fa;
+    border-bottom: 1px solid #4fc3f7;
+    padding-bottom: 4px;  /* 减少内边距 */
+    font-size: 16px;  /* 稍微缩小字体 */
+}
+
+/* 复选框样式 */
+.control-group label {
+    display: inline-block;  /* 改为inline-block，支持横向排列 */
+    margin: 5px 8px 5px 0;  /* 调整间距，右侧留出间隔 */
+    cursor: pointer;
+    font-size: 18px;  /* 调大字体，从14px改为15px */
+    padding: 6px 10px;  /* 增加内边距，让复选框更好点击 */
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    white-space: nowrap;  /* 防止文字换行 */
+    width: calc(25% - 10px);  /* 每行4个，留出间距 */
+    box-sizing: border-box;
+}
+
+.control-group label:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.control-group input[type="checkbox"] {
+    margin-right: 6px;
+    cursor: pointer;
+    width: 16px;  /* 调大复选框 */
+    height: 16px;
+    vertical-align: middle;  /* 垂直居中对齐 */
+}
+
+/* 输入组 */
+.input-group {
+    margin: 8px 0;  /* 减少间距，从10px改为8px */
+}
+
+.input-group label {
+    display: inline-block;
+    width: 60px;
+    margin-right: 8px;  /* 稍微减少间距 */
+    font-size: 14px;  /* 缩小字体 */
+}
+
+.input-group input, .input-group select {
+    padding: 5px 6px;  /* 减少内边距 */
+    border-radius: 4px;
+    border: 1px solid #4fc3f7;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    width: 70px;
+    font-size: 13px;  /* 缩小字体 */
+}
+
+.input-group input {
+    width: 85px;  /* 稍微减小 */
+}
+
+/* 按钮样式 */
+button {
+    display: block;
+    width: 100%;
+    padding: 10px;  /* 减少内边距，从12px改为10px */
+    margin: 8px 0;  /* 减少间距，从10px改为8px */
+    background: linear-gradient(to right, #00bcd4, #2196f3);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;  /* 缩小字体 */
+    transition: all 0.3s;
+}
+
+button:hover {
+    background: linear-gradient(to right, #2196f3, #00bcd4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* 线索容器 */
+#clueContainer {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px;  /* 减少内边距，从10px改为8px */
+    border-radius: 4px;
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+    min-height: 50px;  /* 减小最小高度 */
+}
+
+#clueText {
+    font-style: italic;
+    color: #b3e5fc;
+    font-size: 14px;  /* 缩小字体 */
+    line-height: 1.5;  /* 稍微减小行高 */
+}
+
+/* 反馈容器 */
+#feedbackContainer {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 8px;  /* 减少内边距，从10px改为8px */
+    border-radius: 4px;
+    min-height: 60px;  /* 减小最小高度 */
+}
+
+#feedbackText {
+    color: #ffcc80;
+    font-size: 14px;  /* 缩小字体 */
+    line-height: 1.5;  /* 稍微减小行高 */
+}
+
+/* 游戏关卡样式 */
+.level-btn {
+    margin: 6px 0;  /* 减少间距，从8px改为6px */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 10px;  /* 减少内边距，从12px改为10px */
+    font-size: 14px;  /* 缩小字体 */
+}
+
+.level-btn:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: translateY(-2px);
+}
+
+.back-btn {
+    background: linear-gradient(to right, #757575, #616161);
+    margin-bottom: 10px;  /* 减少间距，从15px改为10px */
+    font-size: 13px;  /* 缩小字体 */
+    padding: 8px;
+}
+
+.back-btn:hover {
+    background: linear-gradient(to right, #616161, #757575);
+}
+
+.story-box {
+    background: rgba(33, 150, 243, 0.15);
+    padding: 10px;  /* 减少内边距，从12px改为10px */
+    border-radius: 6px;
+    border-left: 4px solid #2196f3;
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+}
+
+.mission-box {
+    background: rgba(255, 235, 59, 0.15);
+    padding: 10px;  /* 减少内边距，从12px改为10px */
+    border-radius: 6px;
+    border-left: 4px solid #ffeb3b;
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+}
+
+.mission-box h4 {
+    color: #ffeb3b;
+    margin: 0 0 8px 0;  /* 减少间距 */
+    font-size: 14px;  /* 缩小字体 */
+}
+
+.hint-box {
+    background: rgba(156, 39, 176, 0.15);
+    padding: 8px;  /* 减少内边距，从10px改为8px */
+    border-radius: 6px;
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+    display: none;
+}
+
+.hint-box.show {
+    display: block;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;  /* 减少间距，从10px改为8px */
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+}
+
+.submit-btn {
+    flex: 2;
+    background: linear-gradient(to right, #4caf50, #66bb6a);
+}
+
+.submit-btn:hover {
+    background: linear-gradient(to right, #66bb6a, #4caf50);
+}
+
+.hint-btn {
+    flex: 1;
+    background: linear-gradient(to right, #ff9800, #ffa726);
+}
+
+.hint-btn:hover {
+    background: linear-gradient(to right, #ffa726, #ff9800);
+}
+
+.feedback-box {
+    background: rgba(0, 188, 212, 0.15);
+    padding: 10px;  /* 减少内边距，从12px改为10px */
+    border-radius: 6px;
+    border-left: 4px solid #00bcd4;
+    margin: 10px 0;  /* 减少间距，从15px改为10px */
+    min-height: 60px;  /* 减小最小高度 */
+}
+
+.feedback-box h4 {
+    color: #00bcd4;
+    margin: 0 0 8px 0;  /* 减少间距 */
+    font-size: 14px;  /* 缩小字体 */
+}
+
+.feedback-box p {
+    color: #b3e5fc;
+    margin: 0;
+    font-size: 14px;  /* 添加字体大小 */
+    line-height: 1.5;  /* 添加行高 */
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    #container {
+        flex-direction: column;
+    }
+    
+    #controlPanel {
+        width: 100%;
+        height: 300px;
+    }
+}

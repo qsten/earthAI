@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>布局测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #leftPanel {
+            width: calc(100% - 320px);
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+        
+        #rightPanel {
+            width: 320px;
+            min-width: 320px;
+            max-width: 320px;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            overflow-y: auto;
+            color: white;
+            border-left: 2px solid #4fc3f7;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: linear-gradient(to right, #00bcd4, #2196f3);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="leftPanel">
+            <h1>这里应该显示3D地球</h1>
+        </div>
+        <div id="rightPanel">
+            <h2 style="color: #4fc3f7;">🌍 控制面板</h2>
+            <div class="control-group">
+                <h3>测试功能</h3>
+                <button onclick="alert('按钮工作正常！')">测试按钮</button>
+            </div>
+            <div class="control-group">
+                <h3>另一个功能</h3>
+                <p>如果你能看到这个面板，说明布局是正确的。</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
