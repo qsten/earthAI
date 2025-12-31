@@ -24,10 +24,13 @@ let treasureLocation = null;
 let treasureClue = "";
 
 // 新游戏系统变量
-let currentLevel = 0;  // 当前关卡 (1, 2, 3)
+let currentLevel = 0;  // 当前关卡 (1-5)
 let passedLevels = [];  // 已通关关卡
 let currentAnswer = null;  // 当前关卡的答案
 let hintShown = false;  // 是否显示过提示
+let selectedOption = null;  // 当前选中的选项
+let targetPoint = null;  // 目标点坐标（用于第1、3、4关）
+let startPoint = null;  // 起点坐标（用于第3、4、5关）
 
 // 初始化Three.js场景
 function init() {
@@ -251,6 +254,16 @@ function toggle3DView(is3D) {
             TWO: THREE.TOUCH.DOLLY_PAN     // 双指触摸：缩放地图
         };
     }
+    
+    // 如果正在游戏中，重新绘制标记点
+    if (currentLevel > 0) {
+        redrawGameMarkers();
+    }
+    
+    // 如果七大洲四大洋标签已显示，重新绘制
+    if (continentLabels.length > 0) {
+        createContinentLabels();
+    }
 }
 
 // 显示3D经纬网
@@ -368,14 +381,17 @@ function createFlatGridLines() {
     for (let lat = -80; lat <= 80; lat += 20) {
         const z = -(lat / 90) * 1.5;  // 翻转纬度：负号使北纬在下，南纬在上
         
-        const points = [
-            new THREE.Vector3(-3, 0.01, z),  // 左边
-            new THREE.Vector3(3, 0.01, z)    // 右边
-        ];
-        
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.95 });
-        const line = new THREE.Line(geometry, material);
+        // 使用矩形平面创建粗线条（更明显）
+        const lineGeometry = new THREE.PlaneGeometry(6, 0.01);  // 宽6，高0.01（加粗）
+        const lineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff, 
+            transparent: true, 
+            opacity: 0.95,
+            side: THREE.DoubleSide
+        });
+        const line = new THREE.Mesh(lineGeometry, lineMaterial);
+        line.position.set(0, 0.01, z);
+        line.rotation.x = -Math.PI / 2;  // 水平放置
         scene.add(line);
         latitudeLines.push(line);
         
@@ -394,14 +410,17 @@ function createFlatGridLines() {
     for (let lon = -180; lon <= 180; lon += 20) {
         const x = (lon / 180) * 3;
         
-        const points = [
-            new THREE.Vector3(x, 0.01, 1.5),   // 翻转后：顶部（南极）
-            new THREE.Vector3(x, 0.01, -1.5)   // 底部（北极）
-        ];
-        
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.95 });
-        const line = new THREE.Line(geometry, material);
+        // 使用矩形平面创建粗线条（更明显）
+        const lineGeometry = new THREE.PlaneGeometry(0.01, 3);  // 宽0.01（加粗），长3
+        const lineMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0x00ffff, 
+            transparent: true, 
+            opacity: 0.95,
+            side: THREE.DoubleSide
+        });
+        const line = new THREE.Mesh(lineGeometry, lineMaterial);
+        line.position.set(x, 0.01, 0);
+        line.rotation.x = -Math.PI / 2;  // 水平放置
         scene.add(line);
         longitudeLines.push(line);
         
@@ -417,13 +436,16 @@ function createFlatGridLines() {
     }
     
     // 创建赤道（z=0）
-    const equatorPoints = [
-        new THREE.Vector3(-3, 0.02, 0),
-        new THREE.Vector3(3, 0.02, 0)
-    ];
-    const equatorGeometry = new THREE.BufferGeometry().setFromPoints(equatorPoints);
-    const equatorMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-    equatorLine = new THREE.Line(equatorGeometry, equatorMaterial);
+    const equatorGeometry = new THREE.PlaneGeometry(6, 0.015);  // 赤道稍微更粗
+    const equatorMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xff0000,
+        transparent: true,
+        opacity: 0.95,
+        side: THREE.DoubleSide
+    });
+    equatorLine = new THREE.Mesh(equatorGeometry, equatorMaterial);
+    equatorLine.position.set(0, 0.02, 0);
+    equatorLine.rotation.x = -Math.PI / 2;
     scene.add(equatorLine);
     
     // 赤道标签
@@ -434,13 +456,16 @@ function createFlatGridLines() {
     latitudeLabels.push(equatorLabel);
     
     // 创建本初子午线（x=0）
-    const primePoints = [
-        new THREE.Vector3(0, 0.02, 1.5),   // 翻转后：从南极（上）
-        new THREE.Vector3(0, 0.02, -1.5)   // 到北极（下）
-    ];
-    const primeGeometry = new THREE.BufferGeometry().setFromPoints(primePoints);
-    const primeMaterial = new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 2 });
-    primeMeridianLine = new THREE.Line(primeGeometry, primeMaterial);
+    const primeGeometry = new THREE.PlaneGeometry(0.015, 3);  // 本初子午线稍微更粗
+    const primeMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xffff00,
+        transparent: true,
+        opacity: 0.95,
+        side: THREE.DoubleSide
+    });
+    primeMeridianLine = new THREE.Mesh(primeGeometry, primeMaterial);
+    primeMeridianLine.position.set(0, 0.02, 0);
+    primeMeridianLine.rotation.x = -Math.PI / 2;
     scene.add(primeMeridianLine);
     
     // 本初子午线标签
@@ -460,20 +485,27 @@ function createFlatGridLines() {
     
     specialLats.forEach(item => {
         const z = -(item.lat / 90) * 1.5;  // 翻转纬度：负号使北纬在下，南纬在上
-        const points = [
-            new THREE.Vector3(-3, 0.01, z),
-            new THREE.Vector3(3, 0.01, z)
-        ];
-        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-        const material = new THREE.LineDashedMaterial({ 
-            color: 0x00ffff, 
-            dashSize: 0.1, 
-            gapSize: 0.05 
-        });
-        const line = new THREE.Line(geometry, material);
-        line.computeLineDistances();
-        scene.add(line);
-        tropicLines.push(line);
+        
+        // 使用矩形平面创建粗虚线（通过多个短线段模拟）
+        const dashCount = 60;  // 虚线段数
+        const dashLength = 6 / dashCount;
+        const dashWidth = 0.01;  // 线条宽度
+        
+        for (let i = 0; i < dashCount; i += 2) {  // 每隔2段画1段（实现虚线效果）
+            const startX = -3 + i * dashLength;
+            const segmentGeometry = new THREE.PlaneGeometry(dashLength * 0.6, dashWidth);
+            const segmentMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.9,
+                side: THREE.DoubleSide
+            });
+            const segment = new THREE.Mesh(segmentGeometry, segmentMaterial);
+            segment.position.set(startX + dashLength * 0.3, 0.01, z);
+            segment.rotation.x = -Math.PI / 2;
+            scene.add(segment);
+            tropicLines.push(segment);
+        }
         
         // 标签
         const label = createTextSprite(`${Math.abs(item.lat)}°${item.lat > 0 ? 'N' : 'S'}(${item.name})`);
@@ -926,30 +958,46 @@ function createContinentLabels() {
     ];
     
     locations.forEach(loc => {
-        // 将地理经度转换为Three.js角度
-        // 地理经度：东经为正，西经为负
-        // Three.js：需要反转（业经用负角度，西经用正角度）
-        let threeLon;
-        if (loc.lon >= 0) {
-            // 东经：转换为360-经度
-            threeLon = 360 - loc.lon;
+        let x, y, z;
+        
+        if (is3DView) {
+            // 3D模式：球体坐标转换
+            // 将地理经度转换为Three.js角度
+            let threeLon;
+            if (loc.lon >= 0) {
+                // 东经：转换为360-经度
+                threeLon = 360 - loc.lon;
+            } else {
+                // 西经：取绝对值
+                threeLon = -loc.lon;
+            }
+            
+            const phi = (90 - loc.lat) * Math.PI / 180;
+            const theta = threeLon * Math.PI / 180;
+            
+            x = Math.sin(phi) * Math.cos(theta) * 1.1;
+            y = Math.cos(phi) * 1.1;
+            z = Math.sin(phi) * Math.sin(theta) * 1.1;
+            
+            console.log(`[3D] ${loc.name}: 地理经纬度(${loc.lat}°, ${loc.lon}°) -> 球面坐标(x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z.toFixed(2)})`);
         } else {
-            // 西经：取绝对值
-            threeLon = -loc.lon;
+            // 2D模式：平面坐标映射
+            x = (loc.lon / 180) * 3;
+            z = -(loc.lat / 90) * 1.5;  // 负号翻转，与经纬网一致
+            y = 0.05;  // 标签在地图上方
+            
+            console.log(`[2D] ${loc.name}: 地理经纬度(${loc.lat}°, ${loc.lon}°) -> 平面坐标(x=${x.toFixed(2)}, z=${z.toFixed(2)})`);
         }
-        
-        const phi = (90 - loc.lat) * Math.PI / 180;
-        const theta = threeLon * Math.PI / 180;
-        
-        const x = Math.sin(phi) * Math.cos(theta) * 1.1;
-        const y = Math.cos(phi) * 1.1;
-        const z = Math.sin(phi) * Math.sin(theta) * 1.1;
-        
-        console.log(`${loc.name}: 地理经度=${loc.lon}, Three.js角度=${threeLon}, 位置(x=${x.toFixed(2)}, z=${z.toFixed(2)})`);
         
         const label = createTextSprite(loc.name, loc.color);
         label.position.set(x, y, z);
-        label.scale.set(0.4, 0.1, 1);  // 大陆洋名称稍大一些
+        
+        if (is3DView) {
+            label.scale.set(0.4, 0.1, 1);  // 3D模式标签尺寸
+        } else {
+            label.scale.set(0.5, 0.12, 1);  // 2D模式标签尺寸（稍大）
+        }
+        
         scene.add(label);
         continentLabels.push(label);
     });
@@ -975,59 +1023,81 @@ function onMouseClick(event) {
     const raycaster = new THREE.Raycaster();
     raycaster.setFromCamera(mouse, camera);
     
-    // 计算与地球的交点
-    const intersects = raycaster.intersectObject(earth);
+    let lat, lon;
     
-    if (intersects.length > 0) {
-        // 获取交点位置
-        const point = intersects[0].point;
+    if (is3DView) {
+        // 3D模式：计算与地球的交点
+        const intersects = raycaster.intersectObject(earth);
         
-        // 转换为经纬度
-        const lat = 90 - (Math.acos(point.y) * 180 / Math.PI);
-        const lon = -(Math.atan2(point.z, point.x) * 180 / Math.PI);
-        
-        // 计算与宝藏位置的距离
-        const dLat = treasureLocation.lat - lat;
-        const dLon = treasureLocation.lon - lon;
-        const distance = Math.sqrt(dLat * dLat + dLon * dLon);
-        
-        // 根据距离给出反馈
-        if (distance < 5) {
-            showFeedback("恭喜你找到了宝藏！位置非常准确！", true);
-            gameActive = false;
-            treasureLocation = null;
+        if (intersects.length > 0) {
+            // 获取交点位置
+            const point = intersects[0].point;
             
-            // 在找到的位置添加标记
-            addMarker(point.x, point.y, point.z);
-        } else if (distance < 15) {
-            showFeedback("很接近了！再仔细找找看", true);
+            // 转换为经纬度
+            lat = 90 - (Math.acos(point.y) * 180 / Math.PI);
+            lon = -(Math.atan2(point.z, point.x) * 180 / Math.PI);
             
-            // 在点击的位置添加标记
-            addMarker(point.x, point.y, point.z);
+            console.log(`3D点击: 地理坐标(${lat.toFixed(1)}°, ${lon.toFixed(1)}°)`);
         } else {
-            // 给出方向指引
-            let directionText = "";
-            if (Math.abs(dLat) > Math.abs(dLon)) {
-                directionText = dLat > 0 ? "北" : "南";
-            } else {
-                directionText = dLon > 0 ? "东" : "西";
-            }
+            return;  // 没有点击到地球
+        }
+    } else {
+        // 2D模式：计算与平面地图的交点
+        const intersects = raycaster.intersectObject(flatMap);
+        
+        if (intersects.length > 0) {
+            // 获取交点位置（这是世界坐标系中的位置）
+            const point = intersects[0].point;
             
-            // 添加更具体的方位描述
-            if (Math.abs(dLat) > Math.abs(dLon)) {
-                if (dLon > 0) {
-                    directionText = dLat > 0 ? "东北" : "东南";
-                } else {
-                    directionText = dLat > 0 ? "西北" : "西南";
-                }
-            }
+            // flatMap被旋转了 -Math.PI/2（绕X轴），所以：
+            // - 平面的本地X轴 → 世界空间的X轴（经度）
+            // - 平面的本地Y轴 → 世界空间的Z轴（纬度）
+            // - 平面的本地Z轴 → 世界空间的-Y轴
             
-            showFeedback(`找偏了！宝藏在你的${directionText}方向，距离还有${distance.toFixed(1)}度，请继续努力！`, true);
+            // 将世界坐标转换为地理经纬度
+            // x: -3到3 → 经度: -180°到180°
+            lon = (point.x / 3) * 180;
+            // z: 1.5到-1.5 → 纬度: -90°到90°（注意：经纬网使用了负号翻转）
+            // 所以这里也需要用负号翻转回来
+            lat = -(point.z / 1.5) * 90;
             
-            // 在点击的位置添加标记
-            addMarker(point.x, point.y, point.z);
+            console.log(`2D点击: 世界坐标(x=${point.x.toFixed(2)}, y=${point.y.toFixed(2)}, z=${point.z.toFixed(2)}) -> 地理坐标(${lat.toFixed(1)}°, ${lon.toFixed(1)}°)`);
+        } else {
+            return;  // 没有点击到平面地图
         }
     }
+    
+    // 保存用户答案
+    currentAnswer = { lat: lat, lon: lon };
+    
+    // 在点击位置添加标记点
+    if (is3DView) {
+        // 3D模式：需要计算球面坐标
+        let threeLon;
+        if (lon >= 0) {
+            threeLon = 360 - lon;
+        } else {
+            threeLon = -lon;
+        }
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = threeLon * Math.PI / 180;
+        const x = Math.sin(phi) * Math.cos(theta) * 1.05;
+        const y = Math.cos(phi) * 1.05;
+        const z = Math.sin(phi) * Math.sin(theta) * 1.05;
+        addMarker(x, y, z);
+    } else {
+        // 2D模式：使用平面坐标
+        const x = (lon / 180) * 3;
+        const z = -(lat / 90) * 1.5;
+        const y = 0.02;
+        addMarker2D(x, y, z);
+    }
+    
+    // 反馈用户点击的坐标
+    const latDir = lat >= 0 ? 'N' : 'S';
+    const lonDir = lon >= 0 ? 'E' : 'W';
+    document.getElementById('gameFeedbackText').textContent = 
+        `你点击的位置是: ${Math.abs(lat).toFixed(1)}°${latDir}, ${Math.abs(lon).toFixed(1)}°${lonDir}。请点击"确认投放"提交答案。`;
 }
 
 // 定位到指定坐标
@@ -1064,36 +1134,53 @@ function locateToCoordinates() {
     let geoLon = lon;
     if (lonDir === 'W') geoLon = -lon;
     
-    // 将地理经度转换为Three.js角度
-    // 东经：threeLon = 360 - geoLon
-    // 西经：threeLon = |geoLon|
-    let threeLon;
-    if (geoLon >= 0) {
-        // 东经
-        threeLon = 360 - geoLon;
+    console.log(`定位: 地理坐标(${geoLat}°, ${geoLon}°)`);
+    
+    if (is3DView) {
+        // 3D模式：将地理经度转换为Three.js角度
+        let threeLon;
+        if (geoLon >= 0) {
+            // 东经
+            threeLon = 360 - geoLon;
+        } else {
+            // 西经
+            threeLon = -geoLon;
+        }
+        
+        console.log(`3D模式: 地理坐标(${geoLat}°, ${geoLon}°) -> Three.js角度(${geoLat}°, ${threeLon}°)`);
+        
+        // 转换为弧度
+        const phi = (90 - geoLat) * Math.PI / 180;
+        const theta = threeLon * Math.PI / 180;
+        
+        // 计算目标位置
+        const targetX = Math.sin(phi) * Math.cos(theta);
+        const targetY = Math.cos(phi);
+        const targetZ = Math.sin(phi) * Math.sin(theta);
+        
+        console.log(`3D目标位置: x=${targetX.toFixed(2)}, y=${targetY.toFixed(2)}, z=${targetZ.toFixed(2)}`);
+        
+        // 创建3D标记
+        addMarker(targetX, targetY, targetZ);
+        
+        // 动画旋转到目标位置
+        animateRotation(targetX, targetY, targetZ);
     } else {
-        // 西经
-        threeLon = -geoLon;
+        // 2D模式：直接映射到平面坐标
+        // 经度：-180°到180° → x: -3到3
+        const x = (geoLon / 180) * 3;
+        // 纬度：与经纬网标签使用相同公式（负号翻转）
+        const z = -(geoLat / 90) * 1.5;
+        const y = 0.02;  // 略高于平面
+        
+        console.log(`2D模式: 地理坐标(${geoLat}°, ${geoLon}°) -> 平面坐标(x=${x.toFixed(2)}, z=${z.toFixed(2)})`);
+        
+        // 创建2D简单标记（红色圆点）
+        addMarker2D(x, y, z);
+        
+        // 相机平滑移动到标记位置
+        animateCamera2D(x, z);
     }
-    
-    console.log(`定位: 地理坐标(${geoLat}°, ${geoLon}°) -> Three.js角度(${geoLat}°, ${threeLon}°)`);
-    
-    // 转换为弧度
-    const phi = (90 - geoLat) * Math.PI / 180;
-    const theta = threeLon * Math.PI / 180;
-    
-    // 计算目标位置
-    const targetX = Math.sin(phi) * Math.cos(theta);
-    const targetY = Math.cos(phi);
-    const targetZ = Math.sin(phi) * Math.sin(theta);
-    
-    console.log(`目标位置: x=${targetX.toFixed(2)}, y=${targetY.toFixed(2)}, z=${targetZ.toFixed(2)}`);
-    
-    // 创建标记
-    addMarker(targetX, targetY, targetZ);
-    
-    // 动画旋转到目标位置
-    animateRotation(targetX, targetY, targetZ);
     
     showFeedback(`已定位到: ${lat}°${latDir}, ${lon}°${lonDir}`);
 }
@@ -1121,6 +1208,66 @@ function addMarker(x, y, z) {
     
     scene.add(marker);
     markers.push(marker);
+}
+
+// 为2D平面地图添加简单标记（红色圆点）
+function addMarker2D(x, y, z) {
+    console.log(`[addMarker2D] 开始添加标记: x=${x.toFixed(2)}, y=${y.toFixed(2)}, z=${z.toFixed(2)}`);
+    
+    // 移除之前的标记
+    markers.forEach(marker => {
+        console.log('[addMarker2D] 移除旧标记');
+        scene.remove(marker);
+    });
+    markers = [];
+    
+    // 创建红色圆点标记（增大半径，提高Y坐标）
+    const markerGeometry = new THREE.CircleGeometry(0.12, 32);  // 增大到半径0.12
+    const markerMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xff0000,
+        side: THREE.DoubleSide,
+        transparent: false,
+        depthTest: false  // 禁用深度测试，确保始终可见
+    });
+    const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+    
+    // 设置标记位置（Y坐标提高到0.1，确保在地图上方）
+    marker.position.set(x, 0.1, z);
+    
+    // 旋转使圆形水平放置（和地图平面平行）
+    marker.rotation.x = -Math.PI / 2;
+    
+    // 设置渲染顺序，确保在最上层
+    marker.renderOrder = 999;
+    
+    scene.add(marker);
+    markers.push(marker);
+    
+    console.log(`[addMarker2D] 2D标记已添加在位置: (${x.toFixed(2)}, 0.1, ${z.toFixed(2)}), markers.length=${markers.length}`);
+    console.log(`[addMarker2D] 标记对象:`, marker);
+}
+
+// 2D模式下相机平滑移动到标记位置
+function animateCamera2D(targetX, targetZ) {
+    // 计算目标相机位置（保持俯视角度）
+    const targetCameraX = targetX;
+    const targetCameraY = 5;  // 保持高度
+    const targetCameraZ = targetZ + 0.1;  // 略微偏移以更好观看
+    
+    // 使用TWEEN动画平滑移动相机
+    new TWEEN.Tween(camera.position)
+        .to({ x: targetCameraX, y: targetCameraY, z: targetCameraZ }, 1000)
+        .easing(TWEEN.Easing.Quadratic.InOut)
+        .onUpdate(() => {
+            camera.lookAt(targetX, 0, targetZ);  // 相机始终看向标记位置
+            controls.target.set(targetX, 0, targetZ);  // 设置控制器目标
+        })
+        .onComplete(() => {
+            controls.update();
+        })
+        .start();
+    
+    console.log(`2D相机移动到: (${targetCameraX.toFixed(2)}, ${targetCameraY.toFixed(2)}, ${targetCameraZ.toFixed(2)})`);
 }
 
 // 动画旋转到目标位置
@@ -1379,28 +1526,73 @@ window.addEventListener('error', function(event) {
 // 游戏关卡配置
 const gameLevels = {
     1: {
-        title: "🥉 青铜级 - 界线寻踪",
-        story: "新晋领航员，请注意！我们的卫星需要校准基准线。请在🌍地球上找出地球的'腰带'（赤道）和'起始线'（本初子午线）。",
-        mission: "请转动地球，找到 0° 纬线（赤道）与 0° 经线（本初子午线）的交汇点，并在该位置插上'基准旗帜'。",
-        hint: "💡 提示：该点位于非洲几内亚湾附近。赤道是红色的粗线，本初子午线是黄色的粗线。",
-        answer: { lat: 0, lon: 0 },  // 地理坐标
-        tolerance: 5  // 容差范围（度）
+        type: 'choice',  // 选择题
+        title: "① 第一关：新兵报到 - 坐标读取",
+        story: "🛠️ 雷达扫描到不明飞行物（UFO）悬停在空中，请汇报它的坐标。",
+        mission: "🎯 观察地球上的标记点 P，它的经纬度是多少？",
+        hint: "💡 提示：请注意，P 点在赤道以北（北纬），本初子午线以东（东经）。",
+        targetPoint: { lat: 20, lon: 40 },  // P点坐标
+        options: [
+            { id: 'A', text: "A. (20°N, 40°W)" },
+            { id: 'B', text: "B. (20°S, 40°E)" },
+            { id: 'C', text: "C. (20°N, 40°E)", correct: true },
+            { id: 'D', text: "D. (40°N, 20°E)" }
+        ]
     },
     2: {
-        title: "🥈 白银级 - 极限营救",
-        story: "资深领航员，收到紧急求助！一艘科考船在风暴中引擎故障。📡雷达显示其最后位置坐标，请立即锁定该位置投放物资。",
-        mission: "🎯 目标坐标锁定：北纬 40°，西经 75°（40°N, 75°W）。请转动地球定位该点。",
-        hint: "💡 提示：目标在北半球的西经区域，大约在北美洲东海岸附近。注意区分N/S和E/W！",
-        answer: { lat: 40, lon: -75 },  // 地理坐标
-        tolerance: 8
+        type: 'operate',  // 操作题
+        title: "② 第二关：精准投放 - 坐标定位",
+        story: "🚁 救援物资已装载，目标地点坐标已确认，请执行投放。",
+        mission: "🎯 请转动地球，找到 南纬 30°，西经 60° (30°S, 60°W) 的位置并点击确认。",
+        hint: "💡 提示：南纬在赤道以南，西经在本初子午线以西。屏幕角落会实时显示鼠标指向的经纬度。",
+        answer: { lat: -30, lon: -60 },
+        tolerance: 8,
+        showRealtimeCoords: true  // 显示实时坐标
     },
     3: {
-        title: "🥇 王者级 - 地心穿梭",
-        story: "🎆传奇领航员，现在开启'地心挖掘模式'！如果你从当前的坐标点垂直向下钻洞，穿过地心，你会从地球的另一端（对跖点）哪里钻出来？",
-        mission: "📍 起点坐标为北京（约40°N, 116°E）。请计算出'地心出口'的经纬度，并直接转动地球，在出口位置建立'地心接收站'。",
-        hint: "💡 提示：对跖点规则：纬度数值相同但南北相反，经度互补（180°-经度）且东西相反。北京40°N,116°E → 对跖点为 40°S, 64°W（南美洲阿根延）。",
-        answer: { lat: -40, lon: -64 },  // 地理坐标
-        tolerance: 10
+        type: 'choice',
+        title: "③ 第三关：直线导航 - 正方向判读",
+        story: "⛵ 舰队需要直线航行，请确认航向。",
+        mission: "🧭 起点 A：(40°N, 100°E)\n终点 B：(40°N, 120°E)\n\n终点 B 位于起点 A 的什么方向？",
+        hint: "💡 提示：两点纬度相同（都在40°N），都在北半球。B 点经度（120°E）大于 A 点（100°E），根据'劣弧定向'原则，应向东航行。",
+        startPoint: { lat: 40, lon: 100 },
+        targetPoint: { lat: 40, lon: 120 },
+        options: [
+            { id: 'A', text: "A. 正东", correct: true },
+            { id: 'B', text: "B. 正西" },
+            { id: 'C', text: "C. 东北" },
+            { id: 'D', text: "D. 西北" }
+        ]
+    },
+    4: {
+        type: 'choice',
+        title: "④ 第四关：跨越重洋 - 斜方向判读",
+        story: "✈️ 跨国航班即将起飞，请规划飞行航向。",
+        mission: "🌏 城市 A（北京）： 约 (40°N, 116°E)\n城市 B（新加坡）： 约 (1°N, 104°E)\n\n城市 B 位于城市 A 的什么方向？",
+        hint: "💡 提示：纬度对比：1°N < 40°N → B 在 A 的南方。经度对比：104°E < 116°E → B 在 A 的西方。结论：西南方向。",
+        startPoint: { lat: 40, lon: 116 },
+        targetPoint: { lat: 1, lon: 104 },
+        options: [
+            { id: 'A', text: "A. 东南" },
+            { id: 'B', text: "B. 西南", correct: true },
+            { id: 'C', text: "C. 东北" },
+            { id: 'D', text: "D. 西北" }
+        ]
+    },
+    5: {
+        type: 'choice',
+        title: "⑤ 第五关：时空追捕 - 动态推演",
+        story: "🛸 目标正在移动！它从起点出发，先向正南飞越了 20 个纬度，又向正东飞越了 30 个经度。",
+        mission: "📍 起点 A 坐标为 (30°N, 20°W)。\n请计算目标的最终坐标是？",
+        hint: "💡 提示：向正南 20 个纬度 → 30°N - 20° = 10°N。向正东 30 个经度 → 20°W 向东跨过 0° 经线 → 到达 10°E。",
+        startPoint: { lat: 30, lon: -20 },
+        options: [
+            { id: 'A', text: "A. (10°N, 10°E)", correct: true },
+            { id: 'B', text: "B. (50°N, 50°W)" },
+            { id: 'C', text: "C. (10°N, 50°W)" },
+            { id: 'D', text: "D. (50°N, 10°E)" }
+        ],
+        animation: true  // 需要动画演示
     }
 };
 
@@ -1410,6 +1602,8 @@ function setupGameEventListeners() {
     document.getElementById('startLevel1Btn').addEventListener('click', () => startLevel(1));
     document.getElementById('startLevel2Btn').addEventListener('click', () => startLevel(2));
     document.getElementById('startLevel3Btn').addEventListener('click', () => startLevel(3));
+    document.getElementById('startLevel4Btn').addEventListener('click', () => startLevel(4));
+    document.getElementById('startLevel5Btn').addEventListener('click', () => startLevel(5));
     
     // 返回主菜单
     document.getElementById('backToMenuBtn').addEventListener('click', backToMenu);
@@ -1420,6 +1614,18 @@ function setupGameEventListeners() {
     // 显示提示
     document.getElementById('showHintBtn').addEventListener('click', showHint);
     
+    // 选项按钮事件
+    document.querySelectorAll('.option-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 移除所有选项的selected状态
+            document.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+            // 添加当前选项的selected状态
+            this.classList.add('selected');
+            selectedOption = this.getAttribute('data-option');
+            console.log(`选中选项: ${selectedOption}`);
+        });
+    });
+    
     console.log('游戏事件监听器已设置');
 }
 
@@ -1428,6 +1634,7 @@ function startLevel(level) {
     currentLevel = level;
     hintShown = false;
     currentAnswer = null;
+    selectedOption = null;
     
     const config = gameLevels[level];
     
@@ -1440,15 +1647,64 @@ function startLevel(level) {
     document.getElementById('storyText').textContent = config.story;
     document.getElementById('missionText').textContent = config.mission;
     document.getElementById('hintText').textContent = config.hint;
-    document.getElementById('gameFeedbackText').textContent = '请点击地球上的目标位置，然后点击“提交答案”。';
     
     // 隐藏提示
     document.querySelector('.hint-box').classList.remove('show');
     
-    // 激活游戏状态
-    gameActive = true;
+    // 清空之前的标记
+    markers.forEach(marker => scene.remove(marker));
+    markers = [];
     
-    console.log(`关卡 ${level} 开始`);
+    // 根据关卡类型显示不同的UI元素
+    const optionsContainer = document.getElementById('optionsContainer');
+    const realtimeCoords = document.getElementById('realtimeCoords');
+    const submitBtn = document.getElementById('submitAnswerBtn');
+    
+    if (config.type === 'choice') {
+        // 选择题：显示选项按钮，隐藏实时坐标
+        optionsContainer.style.display = 'grid';
+        realtimeCoords.style.display = 'none';
+        submitBtn.textContent = '✅ 提交答案';
+        
+        // 设置选项内容
+        const optionBtns = document.querySelectorAll('.option-btn');
+        config.options.forEach((opt, index) => {
+            optionBtns[index].textContent = opt.text;
+            optionBtns[index].setAttribute('data-option', opt.id);
+            optionBtns[index].classList.remove('selected', 'correct', 'wrong');
+        });
+        
+        // 在地球上标记目标点（第1、3、4关）
+        if (config.targetPoint) {
+            const { lat, lon } = config.targetPoint;
+            markPointOnEarth(lat, lon, 0xff0000);  // 红色标记
+        }
+        
+        // 如果有起点，也标记起点（第3、4、5关）
+        if (config.startPoint) {
+            const { lat, lon } = config.startPoint;
+            markPointOnEarth(lat, lon, 0x00ff00);  // 绿色标记起点
+        }
+        
+        document.getElementById('gameFeedbackText').textContent = '请选择正确答案，然后点击"提交答案"。';
+        gameActive = false;  // 选择题不需要点击地球
+        
+    } else if (config.type === 'operate') {
+        // 操作题：隐藏选项按钮，显示实时坐标（如果需要）
+        optionsContainer.style.display = 'none';
+        realtimeCoords.style.display = config.showRealtimeCoords ? 'block' : 'none';
+        submitBtn.textContent = '✅ 确认投放';
+        
+        document.getElementById('gameFeedbackText').textContent = '请点击地球上的目标位置，然后点击"确认投放"。';
+        gameActive = true;  // 操作题需要点击地球
+        
+        // 如果需要实时坐标，设置鼠标移动监听
+        if (config.showRealtimeCoords) {
+            setupMouseCoordinates();
+        }
+    }
+    
+    console.log(`关卡 ${level} (${config.type}) 开始`);
 }
 
 // 返回主菜单
@@ -1471,30 +1727,175 @@ function showHint() {
     hintShown = true;
 }
 
-// 检查关卡答案
-function checkLevelAnswer() {
-    if (!currentAnswer) {
-        document.getElementById('gameFeedbackText').textContent = '⚠️ 请先点击地球上的位置，然后再提交答案！';
-        return;
+// 在地球上标记点（用于游戏关卡）
+function markPointOnEarth(lat, lon, color = 0xff0000) {
+    if (is3DView) {
+        // 3D模式：球体坐标转换
+        let threeLon;
+        if (lon >= 0) {
+            threeLon = 360 - lon;
+        } else {
+            threeLon = -lon;
+        }
+        
+        // 转换为弧度
+        const phi = (90 - lat) * Math.PI / 180;
+        const theta = threeLon * Math.PI / 180;
+        
+        // 计算位置
+        const x = Math.sin(phi) * Math.cos(theta) * 1.05;
+        const y = Math.cos(phi) * 1.05;
+        const z = Math.sin(phi) * Math.sin(theta) * 1.05;
+        
+        // 创建球体标记
+        const markerGeometry = new THREE.SphereGeometry(0.03, 16, 16);
+        const markerMaterial = new THREE.MeshBasicMaterial({ color: color });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.set(x, y, z);
+        
+        scene.add(marker);
+        markers.push(marker);
+        
+    } else {
+        // 2D模式：平面坐标映射
+        const x = (lon / 180) * 3;
+        const z = -(lat / 90) * 1.5;  // 负号翻转，与经纬网一致
+        const y = 0.02;
+        
+        // 创建圆形标记
+        const markerGeometry = new THREE.CircleGeometry(0.08, 32);
+        const markerMaterial = new THREE.MeshBasicMaterial({ 
+            color: color,
+            side: THREE.DoubleSide
+        });
+        const marker = new THREE.Mesh(markerGeometry, markerMaterial);
+        marker.position.set(x, y, z);
+        marker.rotation.x = -Math.PI / 2;  // 水平放置
+        
+        scene.add(marker);
+        markers.push(marker);
     }
     
+    console.log(`标记点: (${lat}°, ${lon}°), 颜色: ${color.toString(16)}, 模式: ${is3DView ? '3D' : '2D'}`);
+}
+
+// 重新绘制游戏标记点（切换视图时调用）
+function redrawGameMarkers() {
+    // 清除现有标记
+    markers.forEach(marker => scene.remove(marker));
+    markers = [];
+    
+    // 根据当前关卡重新绘制标记
     const config = gameLevels[currentLevel];
-    const { lat: ansLat, lon: ansLon } = config.answer;
-    const { lat: userLat, lon: userLon } = currentAnswer;
+    if (!config) return;
     
-    // 计算距离
-    const dLat = ansLat - userLat;
-    const dLon = ansLon - userLon;
-    const distance = Math.sqrt(dLat * dLat + dLon * dLon);
+    // 绘制目标点（红色）
+    if (config.targetPoint) {
+        const { lat, lon } = config.targetPoint;
+        markPointOnEarth(lat, lon, 0xff0000);
+    }
     
-    console.log(`答案: (${ansLat}, ${ansLon}), 用户: (${userLat.toFixed(1)}, ${userLon.toFixed(1)}), 距离: ${distance.toFixed(1)}`);
+    // 绘制起点（绿色）
+    if (config.startPoint) {
+        const { lat, lon } = config.startPoint;
+        markPointOnEarth(lat, lon, 0x00ff00);
+    }
     
-    if (distance < config.tolerance) {
-        // 通关成功
-        handleLevelSuccess(currentLevel);
-    } else {
-        // 给出错误反馈
-        handleLevelError(currentLevel, userLat, userLon, ansLat, ansLon);
+    console.log(`重新绘制关卡 ${currentLevel} 的标记点`);
+}
+
+// 设置鼠标实时坐标显示（第二关）
+function setupMouseCoordinates() {
+    const canvas = document.getElementById('earthCanvas');
+    const mouseCoords = document.getElementById('mouseCoords');
+    
+    canvas.addEventListener('mousemove', function(event) {
+        if (!is3DView) return;  // 只在3D视图下显示
+        
+        const rect = canvas.getBoundingClientRect();
+        const mouse = new THREE.Vector2();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouse, camera);
+        
+        const intersects = raycaster.intersectObject(earth);
+        
+        if (intersects.length > 0) {
+            const point = intersects[0].point;
+            
+            // 转换为经纬度
+            const lat = 90 - (Math.acos(point.y) * 180 / Math.PI);
+            const lon = -(Math.atan2(point.z, point.x) * 180 / Math.PI);
+            
+            const latDir = lat >= 0 ? 'N' : 'S';
+            const lonDir = lon >= 0 ? 'E' : 'W';
+            
+            mouseCoords.textContent = `${Math.abs(lat).toFixed(1)}°${latDir}, ${Math.abs(lon).toFixed(1)}°${lonDir}`;
+        } else {
+            mouseCoords.textContent = '--';
+        }
+    });
+}
+
+// 检查关卡答案
+function checkLevelAnswer() {
+    const config = gameLevels[currentLevel];
+    
+    if (config.type === 'choice') {
+        // 选择题：检查选中的选项
+        if (!selectedOption) {
+            document.getElementById('gameFeedbackText').textContent = '⚠️ 请先选择一个答案！';
+            return;
+        }
+        
+        // 找到正确答案
+        const correctOption = config.options.find(opt => opt.correct);
+        
+        if (selectedOption === correctOption.id) {
+            // 答对了
+            const selectedBtn = document.querySelector(`.option-btn[data-option="${selectedOption}"]`);
+            selectedBtn.classList.remove('selected');
+            selectedBtn.classList.add('correct');
+            
+            handleLevelSuccess(currentLevel);
+        } else {
+            // 答错了
+            const selectedBtn = document.querySelector(`.option-btn[data-option="${selectedOption}"]`);
+            const correctBtn = document.querySelector(`.option-btn[data-option="${correctOption.id}"]`);
+            
+            selectedBtn.classList.remove('selected');
+            selectedBtn.classList.add('wrong');
+            correctBtn.classList.add('correct');
+            
+            handleChoiceError(currentLevel, selectedOption, correctOption.id);
+        }
+        
+    } else if (config.type === 'operate') {
+        // 操作题：检查点击的位置
+        if (!currentAnswer) {
+            document.getElementById('gameFeedbackText').textContent = '⚠️ 请先点击地球上的位置，然后再确认投放！';
+            return;
+        }
+        
+        const { lat: ansLat, lon: ansLon } = config.answer;
+        const { lat: userLat, lon: userLon } = currentAnswer;
+        
+        // 计算距离
+        const dLat = ansLat - userLat;
+        const dLon = ansLon - userLon;
+        const distance = Math.sqrt(dLat * dLat + dLon * dLon);
+        
+        console.log(`答案: (${ansLat}, ${ansLon}), 用户: (${userLat.toFixed(1)}, ${userLon.toFixed(1)}), 距离: ${distance.toFixed(1)}`);
+        
+        if (distance < config.tolerance) {
+            // 通关成功
+            handleLevelSuccess(currentLevel);
+        } else {
+            // 给出错误反馈
+            handleOperateError(currentLevel, userLat, userLon, ansLat, ansLon);
+        }
     }
 }
 
@@ -1508,67 +1909,94 @@ function handleLevelSuccess(level) {
     let successMessage = '';
     switch(level) {
         case 1:
-            successMessage = '🎉 恭喜！你成功找到了赤道与本初子午线的交点！这是地理坐标系的原点 (0°, 0°)，位于非洲几内亚湾。青铜级挑战完成！';
+            successMessage = '🎉 正确！点 P 的坐标是 (20°N, 40°E)。它在赤道以北，本初子午线以东。新兵训练完成！';
             break;
         case 2:
-            successMessage = '🎉 准确命中！你成功定位到 40°N, 75°W，这里是美国纽约附近的大西洋海域。物资投放成功，科考船得救！白银级挑战完成！';
+            successMessage = '🎉 准确命中！你成功定位到 30°S, 60°W，这里是南美洲附近的大西洋海域。物资投放成功！';
             break;
         case 3:
-            successMessage = '🎆 神级操作！你成功找到了北京 (40°N, 116°E) 的对跖点 40°S, 64°W，位于南美洲阿根延附近！地心接收站建立成功！王者级挑战完成！';
-            
-            // 第三关显示激光线连接对跖点
-            showAntipodeLine(40, 116, -40, -64);
+            successMessage = '🎉 正确！终点 B 的确位于起点 A 的正东方。两点纬度相同，B 的经度更大，因此向东航行。直线导航成功！';
+            break;
+        case 4:
+            successMessage = '🎉 完全正确！新加坡位于北京的西南方。纬度更低（南），经度更小（西）。跨洋航线规划成功！';
+            break;
+        case 5:
+            successMessage = '🎆 完美！目标最终坐标为 (10°N, 10°E)。向南 20° 后为 10°N，向东 30° 穿过本初子午线到达 10°E。动态追踪成功！';
             break;
     }
     
-    document.getElementById('gameFeedbackText').innerHTML = successMessage;
+    // 检查是否全部通关
+    if (passedLevels.length === 5) {
+        successMessage += '<br><br>🏆 <strong>恭喜通关所有关卡！你是真正的GPS大师！</strong><br>🌟 你已完全掌握经纬度的核心知识！';
+    }
     
-    // 3秒后自动返回主菜单
-    setTimeout(() => {
-        if (passedLevels.length === 3) {
-            document.getElementById('gameFeedbackText').innerHTML = '🏆 恭喜通关所有关卡！你是真正的时空穿梭者！<br>🌟 你已掌握经纬度的核心知识！';
-            setTimeout(backToMenu, 3000);
-        } else {
-            backToMenu();
-        }
-    }, 3000);
+    // 添加返回按钮提示
+    successMessage += '<br><br>👆 点击上方"返回主菜单"继续挑战其他关卡。';
+    
+    document.getElementById('gameFeedbackText').innerHTML = successMessage;
 }
 
-// 关卡错误反馈
-function handleLevelError(level, userLat, userLon, ansLat, ansLon) {
+// 选择题错误反馈
+function handleChoiceError(level, selectedOpt, correctOpt) {
     let errorMessage = '';
     
     switch(level) {
         case 1:
-            // 第一关：判断点到了180°线还是北极
-            if (Math.abs(userLon - 180) < 20 || Math.abs(userLon + 180) < 20) {
-                errorMessage = '❌ 错误！你跑到了地球背面（国际日期变更线）附近，请向东或向西旋转180度回到本初子午线！📍 提示：本初子午线是黄色的粗线。';
-            } else if (Math.abs(userLat) > 60) {
-                errorMessage = '⚠️ 警告！纬度过高。赤道是纬度为0度的线，请向南移动！📍 提示：赤道是红色的粗线。';
-            } else {
-                errorMessage = `❌ 位置偏离！目标在 (0°, 0°)，你点击的是 (${userLat.toFixed(1)}°, ${userLon.toFixed(1)}°)。请找到红色赤道线和黄色本初子午线的交点！`;
-            }
-            break;
-            
-        case 2:
-            // 第二关：判断是东经还是南纬错误
-            if (userLon > 0 && Math.abs(userLat - 40) < 15) {
-                errorMessage = '🚫 定位失败！你位于亚洲大陆（中国/中亚附近），但目标在西半球的北美洲附近。请注意“W”代表西经，向西穿越本初子午线！';
-            } else if (userLat < 0) {
-                errorMessage = '🧭 方向错误！目标在北半球，你现在位于南半球海洋，请跨越赤道向北寻找！';
-            } else {
-                errorMessage = `📍 位置不准！目标是 40°N, 75°W，你点击的是 ${Math.abs(userLat).toFixed(1)}°${userLat >= 0 ? 'N' : 'S'}, ${Math.abs(userLon).toFixed(1)}°${userLon >= 0 ? 'E' : 'W'}。请继续调整！`;
+            if (selectedOpt === 'A') {
+                errorMessage = '❌ 错误！P 点在本初子午线以东，应该是东经(E)，而不是西经(W)。请注意，<strong>本初子午线是黄色粗线</strong>。';
+            } else if (selectedOpt === 'B') {
+                errorMessage = '❌ 错误！P 点在赤道以北，应该是北纬(N)，而不是南纬(S)。请注意，<strong>赤道是红色粗线</strong>。';
+            } else if (selectedOpt === 'D') {
+                errorMessage = '❌ 错误！经纬度的顺序是：先纬度，后经度。正确答案应该是 (20°N, 40°E)。';
             }
             break;
             
         case 3:
-            // 第三关：判断是否只反转了纬度
-            if (userLat < 0 && userLon > 100 && userLon < 130) {
-                errorMessage = '🔍 差一点！你只到了南半球的同经度地区（澳大利亚附近）。💡 穿过地心不仅要南北翻转，经度也要互补（180° - 116°），并改变东西方向。请继续向东寻找西经 64°！';
-            } else {
-                errorMessage = `🧠 再试试！对跖点应该是 40°S, 64°W，你点击的是 ${Math.abs(userLat).toFixed(1)}°${userLat >= 0 ? 'N' : 'S'}, ${Math.abs(userLon).toFixed(1)}°${userLon >= 0 ? 'E' : 'W'}。记住对跖点规则：纬度反号，经度互补且反向！`;
+            if (selectedOpt === 'B') {
+                errorMessage = '❌ 错误！两点纬度相同(40°N)，说明在同一条纬线上。B 的经度(120°E)大于 A(100°E)，所以应该向<strong>东</strong>航行。';
+            } else if (selectedOpt === 'C' || selectedOpt === 'D') {
+                errorMessage = '❌ 错误！两点纬度完全相同，都在 40°N，说明是<strong>水平方向</strong>，不可能有北南偏移。正确答案是正东。';
             }
             break;
+            
+        case 4:
+            if (selectedOpt === 'A') {
+                errorMessage = '❌ 错误！新加坡(104°E) 的经度<strong>小于</strong>北京(116°E)，说明新加坡在北京的<strong>西方</strong>，不是东方。';
+            } else if (selectedOpt === 'C') {
+                errorMessage = '❌ 错误！新加坡(1°N) 的纬度<strong>小于</strong>北京(40°N)，说明新加坡在北京的<strong>南方</strong>，不是北方。';
+            } else if (selectedOpt === 'D') {
+                errorMessage = '❌ 错误！北南方向判断正确（南），但东西方向错误。新加坡(104°E) < 北京(116°E)，应该是<strong>西</strong>南。';
+            }
+            break;
+            
+        case 5:
+            if (selectedOpt === 'B') {
+                errorMessage = '❌ 错误！向正南移动时，纬度应该<strong>减小</strong>，而不是增大。正确算法：30°N - 20° = 10°N。';
+            } else if (selectedOpt === 'C') {
+                errorMessage = '❌ 错误！纬度计算正确，但经度计算错误。从 20°W 向东 30°，需要<strong>跨过本初子午线(0°)</strong>，到达 10°E。';
+            } else if (selectedOpt === 'D') {
+                errorMessage = '❌ 错误！经度计算正确，但纬度计算错误。向南移动时纬度减小：30°N - 20° = 10°N。';
+            }
+            break;
+    }
+    
+    document.getElementById('gameFeedbackText').innerHTML = errorMessage + '<br><br>💡 正确答案已高亮显示为绿色。';
+}
+
+// 操作题错误反馈
+function handleOperateError(level, userLat, userLon, ansLat, ansLon) {
+    let errorMessage = '';
+    
+    // 只有第2关是操作题
+    if (level === 2) {
+        // 第二关：判断是东经还是南纬错误
+        if (userLon > 0 && Math.abs(userLat + 30) < 15) {
+            errorMessage = '🚫 定位失败！你位于东半球，但目标在西半球。请注意"W"代表西经，向西穿越本初子午线！';
+        } else if (userLat > 0) {
+            errorMessage = '🧭 方向错误！目标在南半球，你现在位于北半球，请跨越赤道向南寻找！';
+        } else {
+            errorMessage = `📍 位置不准！目标是 30°S, 60°W，你点击的是 ${Math.abs(userLat).toFixed(1)}°${userLat >= 0 ? 'N' : 'S'}, ${Math.abs(userLon).toFixed(1)}°${userLon >= 0 ? 'E' : 'W'}。请继续调整！`;
+        }
     }
     
     document.getElementById('gameFeedbackText').innerHTML = errorMessage;
@@ -1604,54 +2032,4 @@ function showAntipodeLine(lat1, lon1, lat2, lon2) {
     
     // 3秒后移除
     setTimeout(() => scene.remove(line), 3000);
-}
-
-// 修改鼠标点击事件，适配新游戏系统
-const originalOnMouseClick = window.onMouseClick;
-function onMouseClick(event) {
-    if (!gameActive || currentLevel === 0) return;
-    
-    // 获取点击位置的归一化设备坐标
-    const rect = renderer.domElement.getBoundingClientRect();
-    const mouse = new THREE.Vector2();
-    mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-    
-    // 设置射线投射器
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mouse, camera);
-    
-    // 计算与地球的交点
-    const intersects = raycaster.intersectObject(earth);
-    
-    if (intersects.length > 0) {
-        const point = intersects[0].point;
-        
-        // 转换为Three.js坐标系的经纬度
-        const lat = 90 - (Math.acos(point.y) * 180 / Math.PI);
-        const lon = Math.atan2(point.z, point.x) * 180 / Math.PI;
-        
-        // 转换为地理经纬度
-        let geoLon;
-        if (lon >= 0 && lon <= 180) {
-            // Three.js 0-180度 = 西经
-            geoLon = -lon;
-        } else if (lon > 180) {
-            // Three.js 180-360度 = 东经
-            geoLon = 360 - lon;
-        } else {
-            // Three.js -180-0度 = 西经
-            geoLon = -lon;
-        }
-        
-        currentAnswer = { lat, lon: geoLon };
-        
-        console.log(`点击位置: Three.js(${lat.toFixed(1)}, ${lon.toFixed(1)}) -> 地理(${lat.toFixed(1)}, ${geoLon.toFixed(1)})`);
-        
-        // 添加标记
-        addMarker(point.x, point.y, point.z);
-        
-        // 更新反馈
-        document.getElementById('gameFeedbackText').textContent = `✅ 已选择位置：${Math.abs(lat).toFixed(1)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(geoLon).toFixed(1)}°${geoLon >= 0 ? 'E' : 'W'}。请点击“提交答案”验证。`;
-    }
 }
